@@ -12,7 +12,11 @@ We constructed a highly controlled dataset consisting of three classes of text:
 
 ## Methodology and Experiments
 
-To ensure zero data leakage, we strictly partitioned the dataset at the book level. No book used in the training set was present in the validation or test sets.
+### Preventing Data Leakage
+A primary concern in stylometry is the model memorizing local chapter patterns rather than true authorial style. If Paragraph 1 from a specific book is in the training set and Paragraph 2 from the same book is in the test set, the model might just recognize the specific plot or characters. To ensure zero data leakage, we strictly partitioned the dataset at the book level using a GroupShuffleSplit based on the source book ID. No book (or its characters/plot) used in the training set was present in the validation or test sets.
+
+### Robustness Validation (Multi Seed Experiment)
+To verify that our high accuracies were not simply the result of an "easy" randomized split, we executed the end to end pipeline across 5 different random seeds. Each seed triggered a completely different configuration of books assigned to the train, validation, and test sets, as well as different weight initializations for the classification head. 
 
 We evaluated the data across three tiers of classification architecture:
 
