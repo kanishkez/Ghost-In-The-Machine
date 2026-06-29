@@ -1,0 +1,88 @@
+project:
+  authors: ["Charles Dickens", "Jane Austen"]
+  seed: 42
+
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  figures_dir: "results/figures"
+  models_dir: "results/models"
+  ga_logs: "runs/ga_logs"
+
+gutenberg_books:
+  Charles Dickens:
+    - {id: 98,     title: "A Tale of Two Cities"}
+    - {id: 1400,   title: "Great Expectations"}
+    - {id: 730,    title: "Oliver Twist"}
+    - {id: 766,    title: "David Copperfield"}
+    - {id: 46,     title: "A Christmas Carol"}
+  Jane Austen:
+    - {id: 1342,   title: "Pride and Prejudice"}
+    - {id: 161,    title: "Sense and Sensibility"}
+    - {id: 158,    title: "Emma"}
+    - {id: 105,    title: "Persuasion"}
+    - {id: 121,    title: "Northanger Abbey"}
+
+dataset:
+  n_per_class: 60
+  n_per_author: 30
+  paragraph_min_words: 100
+  paragraph_max_words: 200
+  topics:
+    - "Poverty and the Condition of the Working Class"
+    - "The Innocence and Suffering of Children"
+    - "Crime, Guilt, and the Justice System"
+    - "The Hypocrisy of Society"
+    - "Family, Loyalty, and Betrayal"
+    - "The City as a Living Organism"
+    - "Class Mobility and Social Aspiration"
+    - "Memory, Regret, and Redemption"
+    - "Love and Sacrifice"
+    - "The Comedic and the Grotesque"
+
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+  stratify_col: "strat_key"
+
+tier_a:
+  model: "random_forest"
+  cv_folds: 5
+  n_estimators: 400
+  max_depth: null
+  class_weight: "balanced"
+
+tier_b:
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  hidden_dim: 128
+  dropout: 0.3
+  lr: 1e-3
+  epochs: 30
+  batch_size: 32
+
+tier_c:
+  base_model: "distilbert-base-uncased"
+  max_length: 256
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0.1
+    target_modules: ["q_lin", "v_lin"]
+    bias: "none"
+  lr: 2e-4
+  epochs: 10
+  batch_size: 16
+  warmup_ratio: 0.1
+
+genetic_algorithm:
+  oracle: "tier_c"
+  population_size: 10
+  elite_size: 3
+  generations: 10
+  target_human_prob: 0.90
+  mutation_prompts:
+    - "Rewrite this paragraph to change the rhythm of the sentences while keeping the vocabulary."
+    - "Introduce a subtle grammatical inconsistency or a rare archaic word."
+    - "Vary sentence length more aggressively; mix very short and very long sentences."
+    - "Replace any abstract generalization with a concrete sensory detail."
