@@ -18,7 +18,14 @@ We evaluated the data across three tiers of classification architecture:
 
 ### Tier A: Traditional Stylometry
 We extracted hand crafted stylometric features, including Lexical Diversity, Hapax Legomena frequency, and Function Word distributions. We trained a Random Forest classifier on these features. 
+
+![Hapax Legomena](results/figures/hapax_legomena.png)
+![Punctuation Heatmap](results/figures/punctuation_heatmap.png)
+
 **Results**: The classifier easily distinguished Genuine Human (Class A) from Generic AI (Class B). However, it struggled significantly against Impostor AI (Class C), proving that LLMs can easily reproduce superficial stylometric markers.
+
+![Tier A ROC Curve](results/figures/tier_a_roc.png)
+![SHAP Summary](results/figures/tier_a_shap_summary.png)
 
 ### Tier B: Frozen Embeddings
 We utilized a frozen Sentence Transformer (all-MiniLM-L6-v2) feeding into a Multi Layer Perceptron.
