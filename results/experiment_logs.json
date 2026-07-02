@@ -1,0 +1,79 @@
+{
+  "cross_author": {
+    "dickens_to_austen": {
+      "accuracy": 0.838,
+      "auc": 0.991
+    },
+    "austen_to_dickens": {
+      "accuracy": 0.954,
+      "auc": 0.993
+    }
+  },
+  "feature_ablation": {
+    "baseline": {
+      "accuracy": 0.969,
+      "auc": 0.999,
+      "n_features": 37
+    },
+    "Lexical Richness": {
+      "accuracy": 0.969,
+      "auc": 0.997,
+      "accuracy_drop": 0.0,
+      "n_features_removed": 3,
+      "n_features_remaining": 34
+    },
+    "Syntax": {
+      "accuracy": 0.969,
+      "auc": 0.998,
+      "accuracy_drop": 0.0,
+      "n_features_removed": 4,
+      "n_features_remaining": 33
+    },
+    "Readability": {
+      "accuracy": 0.969,
+      "auc": 0.997,
+      "accuracy_drop": 0.0,
+      "n_features_removed": 1,
+      "n_features_remaining": 36
+    },
+    "Punctuation": {
+      "accuracy": 0.977,
+      "auc": 0.999,
+      "accuracy_drop": -0.008,
+      "n_features_removed": 9,
+      "n_features_remaining": 28
+    },
+    "Function Words": {
+      "accuracy": 0.93,
+      "auc": 0.983,
+      "accuracy_drop": 0.039,
+      "n_features_removed": 20,
+      "n_features_remaining": 17
+    },
+    "only_Lexical Richness": {
+      "accuracy": 0.625,
+      "auc": 0.834,
+      "n_features": 3
+    },
+    "only_Syntax": {
+      "accuracy": 0.781,
+      "auc": 0.93,
+      "n_features": 4
+    },
+    "only_Readability": {
+      "accuracy": 0.625,
+      "auc": 0.8,
+      "n_features": 1
+    },
+    "only_Punctuation": {
+      "accuracy": 0.773,
+      "auc": 0.897,
+      "n_features": 9
+    },
+    "only_Function Words": {
+      "accuracy": 0.922,
+      "auc": 0.987,
+      "n_features": 20
+    }
+  }
+}

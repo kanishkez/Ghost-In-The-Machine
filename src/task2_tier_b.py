@@ -2,123 +2,102 @@
 Task 2 — Tier B: The Semanticist.
 Feedforward NN over sentence-transformer embeddings.
 """
-from __future__ import annotations
-from pathlib import Path
-import numpy as np
-import pandas as pd
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.metrics import classification_report, roc_auc_score
-from sklearn.preprocessing import label_binarize
-
-from .config import CFG, PROJECT_ROOT, seed_everything
-from .utils import load_csv
-
-LABEL_MAP = {"Human": 0, "AI_Generic": 1, "AI_Impostor": 2}
-
-class MLPHead(nn.Module):
-    def __init__(self, in_dim, n_classes, hidden, dropout):
+from__future__importannotations
+frompathlibimportPath
+importnumpyasnp
+importpandasaspd
+importtorch
+importtorch.nnasnn
+fromtorch.utils.dataimportDataLoader,TensorDataset
+fromsklearn.metricsimportclassification_report,roc_auc_score
+fromsklearn.preprocessingimportlabel_binarize
+from.configimportCFG,PROJECT_ROOT,seed_everything
+from.utilsimportload_csv
+LABEL_MAP={"Human":0,"AI_Generic":1,"AI_Impostor":2}
+classMLPHead(nn.Module):
+    def__init__(self,in_dim,n_classes,hidden,dropout):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(in_dim, hidden), nn.ReLU(), nn.Dropout(dropout),
-            nn.Linear(hidden, hidden // 2), nn.ReLU(), nn.Dropout(dropout),
-            nn.Linear(hidden // 2, n_classes)
-        )
-    def forward(self, x): return self.net(x)
-
-def embed_texts(texts, model_name):
-    from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer(model_name)
-    return model.encode(texts, show_progress_bar=True, convert_to_numpy=True)
-
-def train_one_epoch(model, dl, opt, loss_fn, device):
+self.net=nn.Sequential(
+nn.Linear(in_dim,hidden),nn.ReLU(),nn.Dropout(dropout),
+nn.Linear(hidden,hidden//2),nn.ReLU(),nn.Dropout(dropout),
+nn.Linear(hidden//2,n_classes)
+)
+defforward(self,x):returnself.net(x)
+defembed_texts(texts,model_name):
+    fromsentence_transformersimportSentenceTransformer
+model=SentenceTransformer(model_name)
+returnmodel.encode(texts,show_progress_bar=True,convert_to_numpy=True)
+deftrain_one_epoch(model,dl,opt,loss_fn,device):
     model.train()
-    total = 0.0
-    for xb, yb in dl:
-        xb, yb = xb.to(device), yb.to(device)
-        opt.zero_grad()
-        out = model(xb)
-        loss = loss_fn(out, yb)
-        loss.backward(); opt.step()
-        total += loss.item() * xb.size(0)
-    return total / len(dl.dataset)
-
+total=0.0
+forxb,ybindl:
+        xb,yb=xb.to(device),yb.to(device)
+opt.zero_grad()
+out=model(xb)
+loss=loss_fn(out,yb)
+loss.backward();opt.step()
+total+=loss.item()*xb.size(0)
+returntotal/len(dl.dataset)
 @torch.no_grad()
-def evaluate(model, dl, device):
+defevaluate(model,dl,device):
     model.eval()
-    logits, ys = [], []
-    for xb, yb in dl:
-        xb = xb.to(device)
-        logits.append(model(xb).cpu().numpy())
-        ys.append(yb.numpy())
-    return np.vstack(logits), np.concatenate(ys)
-
-def main():
+logits,ys=[],[]
+forxb,ybindl:
+        xb=xb.to(device)
+logits.append(model(xb).cpu().numpy())
+ys.append(yb.numpy())
+returnnp.vstack(logits),np.concatenate(ys)
+defmain():
     seed_everything(CFG["project"]["seed"])
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    train, val, test = load_csv("train.csv"), load_csv("val.csv"), load_csv("test.csv")
-    
-    print(f"[Tier B] Note: Using {CFG['tier_b']['embedding_model']}. This model was trained on internet text and likely already contains stylistic representations of Dickens and Austen. This may leak author identity into the embeddings.")
-
-    print("Embedding splits...")
-    X_tr = embed_texts(train["text"].tolist(), CFG["tier_b"]["embedding_model"])
-    X_val = embed_texts(val["text"].tolist(), CFG["tier_b"]["embedding_model"])
-    X_test = embed_texts(test["text"].tolist(), CFG["tier_b"]["embedding_model"])
-
-    y_tr = train["label"].map(LABEL_MAP).values
-    y_val = val["label"].map(LABEL_MAP).values
-    y_test = test["label"].map(LABEL_MAP).values
-
-    in_dim = X_tr.shape[1]
-    model = MLPHead(in_dim, 3, CFG["tier_b"]["hidden_dim"], CFG["tier_b"]["dropout"]).to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=float(CFG["tier_b"]["lr"]))
-    loss_fn = nn.CrossEntropyLoss()
-
-    g = torch.Generator()
-    g.manual_seed(CFG["project"]["seed"])
-
-    tr_dl = DataLoader(TensorDataset(torch.tensor(X_tr, dtype=torch.float32), torch.tensor(y_tr, dtype=torch.long)), batch_size=CFG["tier_b"]["batch_size"], shuffle=True, generator=g)
-    val_dl = DataLoader(TensorDataset(torch.tensor(X_val, dtype=torch.float32), torch.tensor(y_val, dtype=torch.long)), batch_size=CFG["tier_b"]["batch_size"])
-    test_dl = DataLoader(TensorDataset(torch.tensor(X_test, dtype=torch.float32), torch.tensor(y_test, dtype=torch.long)), batch_size=CFG["tier_b"]["batch_size"])
-
-    best_macro_auc = 0
-    best_state = None
-    patience = 3
-    epochs_no_improve = 0
-    
-    for ep in range(CFG["tier_b"]["epochs"]):
-        loss = train_one_epoch(model, tr_dl, opt, loss_fn, device)
-        logits, ys = evaluate(model, val_dl, device)
-        y_bin_val = label_binarize(ys, classes=[0, 1, 2])
-        val_macro_auc = roc_auc_score(y_bin_val, logits, average="macro", multi_class="ovr")
-        val_acc = (logits.argmax(1) == ys).mean()
-        
-        print(f"epoch {ep+1:02d} loss={loss:.4f} val_acc={val_acc:.4f} val_macro_auc={val_macro_auc:.4f}")
-        
-        if val_macro_auc > best_macro_auc:
-            best_macro_auc = val_macro_auc
-            best_state = {k: v.clone() for k, v in model.state_dict().items()}
-            epochs_no_improve = 0
-        else:
-            epochs_no_improve += 1
-            
-        if epochs_no_improve >= patience:
+device="cuda"iftorch.cuda.is_available()else"cpu"
+train,val,test=load_csv("train.csv"),load_csv("val.csv"),load_csv("test.csv")
+print(f"[Tier B] Note: Using {CFG['tier_b']['embedding_model']}. This model was trained on internet text and likely already contains stylistic representations of Dickens and Austen. This may leak author identity into the embeddings.")
+print("Embedding splits...")
+X_tr=embed_texts(train["text"].tolist(),CFG["tier_b"]["embedding_model"])
+X_val=embed_texts(val["text"].tolist(),CFG["tier_b"]["embedding_model"])
+X_test=embed_texts(test["text"].tolist(),CFG["tier_b"]["embedding_model"])
+y_tr=train["label"].map(LABEL_MAP).values
+y_val=val["label"].map(LABEL_MAP).values
+y_test=test["label"].map(LABEL_MAP).values
+in_dim=X_tr.shape[1]
+model=MLPHead(in_dim,3,CFG["tier_b"]["hidden_dim"],CFG["tier_b"]["dropout"]).to(device)
+opt=torch.optim.Adam(model.parameters(),lr=float(CFG["tier_b"]["lr"]))
+loss_fn=nn.CrossEntropyLoss()
+g=torch.Generator()
+g.manual_seed(CFG["project"]["seed"])
+tr_dl=DataLoader(TensorDataset(torch.tensor(X_tr,dtype=torch.float32),torch.tensor(y_tr,dtype=torch.long)),batch_size=CFG["tier_b"]["batch_size"],shuffle=True,generator=g)
+val_dl=DataLoader(TensorDataset(torch.tensor(X_val,dtype=torch.float32),torch.tensor(y_val,dtype=torch.long)),batch_size=CFG["tier_b"]["batch_size"])
+test_dl=DataLoader(TensorDataset(torch.tensor(X_test,dtype=torch.float32),torch.tensor(y_test,dtype=torch.long)),batch_size=CFG["tier_b"]["batch_size"])
+best_macro_auc=0
+best_state=None
+patience=3
+epochs_no_improve=0
+forepinrange(CFG["tier_b"]["epochs"]):
+        loss=train_one_epoch(model,tr_dl,opt,loss_fn,device)
+logits,ys=evaluate(model,val_dl,device)
+y_bin_val=label_binarize(ys,classes=[0,1,2])
+val_macro_auc=roc_auc_score(y_bin_val,logits,average="macro",multi_class="ovr")
+val_acc=(logits.argmax(1)==ys).mean()
+print(f"epoch {ep+1:02d} loss={loss:.4f} val_acc={val_acc:.4f} val_macro_auc={val_macro_auc:.4f}")
+ifval_macro_auc>best_macro_auc:
+            best_macro_auc=val_macro_auc
+best_state={k:v.clone()fork,vinmodel.state_dict().items()}
+epochs_no_improve=0
+else:
+            epochs_no_improve+=1
+ifepochs_no_improve>=patience:
             print(f"Early stopping triggered at epoch {ep+1}")
-            break
-
-    model.load_state_dict(best_state)
-    logits, ys = evaluate(model, test_dl, device)
-    preds = logits.argmax(1)
-    print("\n[Tier B] Test classification report:")
-    print(classification_report(ys, preds, target_names=list(LABEL_MAP.keys())))
-    y_bin = label_binarize(ys, classes=[0,1,2])
-    macro_auc = roc_auc_score(y_bin, logits, average="macro", multi_class="ovr")
-    print(f"[Tier B] Test macro AUC = {macro_auc:.3f}")
-
-    model_dir = PROJECT_ROOT / CFG["paths"]["models_dir"]
-    model_dir.mkdir(parents=True, exist_ok=True)
-    torch.save({"state_dict": best_state, "in_dim": in_dim}, model_dir / "tier_b_mlp.pt")
-
-if __name__ == "__main__":
+break
+model.load_state_dict(best_state)
+logits,ys=evaluate(model,test_dl,device)
+preds=logits.argmax(1)
+print("\n[Tier B] Test classification report:")
+print(classification_report(ys,preds,target_names=list(LABEL_MAP.keys())))
+y_bin=label_binarize(ys,classes=[0,1,2])
+macro_auc=roc_auc_score(y_bin,logits,average="macro",multi_class="ovr")
+print(f"[Tier B] Test macro AUC = {macro_auc:.3f}")
+model_dir=PROJECT_ROOT/CFG["paths"]["models_dir"]
+model_dir.mkdir(parents=True,exist_ok=True)
+torch.save({"state_dict":best_state,"in_dim":in_dim},model_dir/"tier_b_mlp.pt")
+if__name__=="__main__":
     main()
